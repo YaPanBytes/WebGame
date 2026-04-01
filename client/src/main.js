@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-
+import { keys } from './Input.js';
 // --- 1. Core Setup ---
 const canvasContainer = document.getElementById('game-container');
 const scene = new THREE.Scene();
@@ -62,14 +62,39 @@ window.addEventListener('resize', () => {
 });
 
 // --- 7. The Game Loop ---
+// --- 7. The Game Loop ---
+const speed = 0.3;      // How fast the plane moves forward
+const turnSpeed = 0.05; // How fast the plane rotates
+
 function animate() {
   requestAnimationFrame(animate);
 
-  // Slowly rotate the placeholder just to prove the engine is running
-  playerPlaceholder.rotation.y += 0.01;
+  // 1. Handle Rotation (A and D keys)
+  if (keys.a) {
+    playerPlaceholder.rotation.y += turnSpeed;
+  }
+  if (keys.d) {
+    playerPlaceholder.rotation.y -= turnSpeed;
+  }
 
+  // 2. Handle Forward Movement (W key)
+  // We use Sine and Cosine to calculate the X and Z velocity based on where the box is pointing
+  if (keys.w) {
+    playerPlaceholder.position.x += Math.sin(playerPlaceholder.rotation.y) * speed;
+    playerPlaceholder.position.z += Math.cos(playerPlaceholder.rotation.y) * speed;
+  }
+
+  // 3. Handle Reverse (S key)
+  if (keys.s) {
+    playerPlaceholder.position.x -= Math.sin(playerPlaceholder.rotation.y) * speed;
+    playerPlaceholder.position.z -= Math.cos(playerPlaceholder.rotation.y) * speed;
+  }
+
+  // Render the scene
   renderer.render(scene, camera);
 }
 
+// Start the engine
+animate();
 // Start the engine
 animate();

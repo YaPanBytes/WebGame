@@ -1,0 +1,26 @@
+// A simple object to track our essential game keys
+export const keys = {
+  w: false,
+  a: false,
+  s: false,
+  d: false,
+  space: false
+};
+
+// When a key is pressed down, set its value to true
+window.addEventListener('keydown', (e) => {
+  const key = e.key.toLowerCase();
+  if (keys.hasOwnProperty(key)) {
+    keys[key] = true;
+  }
+  if (e.code === 'Space') keys.space = true;
+});
+
+// When the key is released, set its value back to false
+window.addEventListener('keyup', (e) => {
+  const key = e.key.toLowerCase();
+  if (keys.hasOwnProperty(key)) {
+    keys[key] = false;
+  }
+  if (e.code === 'Space') keys.space = false;
+});
