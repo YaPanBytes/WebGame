@@ -1,0 +1,79 @@
+/* --- Reset & Global --- */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body, html {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden; /* Absolutely crucial to prevent scrolling */
+  background-color: #050510; /* Deep space black/blue */
+  font-family: 'Courier New', Courier, monospace; /* Classic sci-fi terminal font */
+  color: #e0e0e0;
+  user-select: none; /* Prevents text highlighting while playing */
+}
+
+/* --- The 3D Game Layer --- */
+#game-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1; /* Stays in the background */
+}
+
+/* --- The 2D HUD Layer --- */
+#ui-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10; /* Floats above the canvas */
+  pointer-events: none; /* CRITICAL: Allows clicks to pass through the UI down to the game */
+  display: flex;
+  justify-content: space-between;
+  padding: 20px;
+}
+
+/* --- HUD Styling --- */
+.hud-panel {
+  background: rgba(10, 20, 40, 0.7);
+  border: 1px solid #00ffff; /* Neon cyan border */
+  box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+  padding: 15px;
+  border-radius: 4px;
+  height: fit-content;
+}
+
+/* Health Bar Mechanics */
+.health-bar-container {
+  width: 200px;
+  height: 15px;
+  background-color: #222;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 8px;
+  border: 1px solid #555;
+}
+
+#health-bar {
+  width: 100%;
+  height: 100%;
+  background-color: #00ffaa;
+  transition: width 0.2s ease-out, background-color 0.2s;
+}
+
+/* Network Status */
+#server-status {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #ffaa00;
+  font-weight: bold;
+  text-shadow: 0 0 5px rgba(255, 170, 0, 0.5);
+}

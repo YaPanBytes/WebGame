@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Isometric Space Combat</title>
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <div id="game-container"></div>
+
+    <div id="ui-layer">
+      
+      <div id="player-stats" class="hud-panel">
+        <div class="health-bar-container">
+          <div id="health-bar"></div>
+        </div>
+        <p>Hull Integrity: <span id="health-text">100</span>%</p>
+      </div>
+
+      <div id="score-board" class="hud-panel">
+        <p>Targets Destroyed: <span id="score">0</span></p>
+      </div>
+      
+      <div id="server-status">Connecting to server...</div>
+
+    </div>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
