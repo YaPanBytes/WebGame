@@ -85,8 +85,8 @@ window.addEventListener('resize', () => {
 });
 
 // --- 7. The Game Loop ---
-const speed = 0.3;      
-const turnSpeed = 0.05; 
+const speed = 1.0;      
+const turnSpeed = 0.09; 
 
 function animate() {
   requestAnimationFrame(animate);
