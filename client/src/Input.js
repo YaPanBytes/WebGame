@@ -4,7 +4,8 @@ export const keys = {
   a: false,
   s: false,
   d: false,
-  space: false
+  space: false,
+  shift: false
 };
 
 // When a key is pressed down, set its value to true
@@ -14,6 +15,7 @@ window.addEventListener('keydown', (e) => {
     keys[key] = true;
   }
   if (e.code === 'Space') keys.space = true;
+  if (e.shiftKey) keys.shift = true;
 });
 
 // When the key is released, set its value back to false
@@ -23,4 +25,5 @@ window.addEventListener('keyup', (e) => {
     keys[key] = false;
   }
   if (e.code === 'Space') keys.space = false;
+  if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.shift = false;
 });

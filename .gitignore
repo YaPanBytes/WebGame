@@ -1,0 +1,6 @@
+node_modules/
+.DS_Store
+dist/
+.env
+codebase_analysis.md
+vision_and_roadmap.md

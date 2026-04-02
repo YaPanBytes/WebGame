@@ -1,6 +1,12 @@
 import * as THREE from 'three';
 import { keys } from './Input.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { World } from './World.js';
+
+// Post-processing imports
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 // --- 1. Core Setup ---
 const canvasContainer = document.getElementById('game-container');
 const scene = new THREE.Scene();
@@ -8,13 +14,12 @@ const scene = new THREE.Scene();
 // --- 2. Renderer ---
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(window.devicePixelRatio); // Keeps it sharp on high-res displays
+renderer.setPixelRatio(window.devicePixelRatio);
 canvasContainer.appendChild(renderer.domElement);
 
 // --- 3. The Isometric Camera ---
-// Using Orthographic to remove depth distortion. 
 const aspect = window.innerWidth / window.innerHeight;
-const frustumSize = 115; // Controls "zoom". Higher number = see more of the map.
+const frustumSize = 115;
 
 const camera = new THREE.OrthographicCamera(
   (frustumSize * aspect) / -2, // left
@@ -25,62 +30,74 @@ const camera = new THREE.OrthographicCamera(
   1000                         // far clipping plane
 );
 
-// Position it diagonally and point it at the center of the world
 camera.position.set(50, 50, 50);
 camera.lookAt(0, 0, 0);
 
-// --- 4. Lighting ---
-// Soft global light so shadows aren't pitch black
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-scene.add(ambientLight);
+// --- 4. Post-Processing Setup ---
+const composer = new EffectComposer(renderer);
+const renderPass = new RenderPass(scene, camera);
+composer.addPass(renderPass);
 
-// The "Sun" - a point light at the center of your solar system
-const sunLight = new THREE.PointLight(0xffaa00, 2, 300);
-sunLight.position.set(0, 0, 0);
-scene.add(sunLight);
-// --- The World Boundary ---
-const WORLD_RADIUS = 100; // How big your solar system arena is
+// Bloom makes the Sun and glowing parts "bleed" light
+const bloomPass = new UnrealBloomPass(
+  new THREE.Vector2(window.innerWidth, window.innerHeight),
+  1.5, // strength
+  0.4, // radius
+  0.85 // threshold
+);
+composer.addPass(bloomPass);
 
-// Create a glowing red ring to show the edge
-const boundaryGeometry = new THREE.RingGeometry(WORLD_RADIUS - 1, WORLD_RADIUS, 64);
-const boundaryMaterial = new THREE.MeshBasicMaterial({ 
-  color: 0xff0000, 
-  side: THREE.DoubleSide, 
-  transparent: true, 
-  opacity: 0.5 
-});
-const boundaryMesh = new THREE.Mesh(boundaryGeometry, boundaryMaterial);
-
-// Lay the ring flat on the XZ floor
-boundaryMesh.rotation.x = Math.PI / 2; 
-scene.add(boundaryMesh);
+// --- 4. The World Engine ---
+const world = new World(scene);
 
 // --- 5. The Player Object ---
 const playerGroup = new THREE.Group();
+playerGroup.position.set(0, 0, 40); // Spawn outside the Sun
 scene.add(playerGroup);
 
 // Initialize the loader
 const loader = new GLTFLoader();
+const thrusters = [];
 
-// Load the 3D model from the public folder
 // Load the 3D model from the public folder
 loader.load(
-  '/assets/ship.glb', 
+  '/assets/ship.glb',
   (gltf) => {
     const shipModel = gltf.scene;
-    // --- NEW: Paint every part of the ship white ---
+
     shipModel.traverse((child) => {
       if (child.isMesh) {
-        // Change the existing material's color to pure white (Hex: 0xffffff)
-        child.material.color.setHex(0xffffff);
+        child.material = new THREE.MeshStandardMaterial({
+          color: 0xffffff,
+          metalness: 0.8,
+          roughness: 0.2,
+        });
       }
     });
-    
-    // Scale the model down if it's too huge. Adjust these numbers as needed!
-    shipModel.scale.set(1, 1, 1); 
+
+    // --- NEW: Add Engine Thrusters ---
+    const thrusterGeometry = new THREE.CylinderGeometry(0.2, 0.5, 1.2, 16);
+    const thrusterMaterial = new THREE.MeshBasicMaterial({
+      color: 0x00ffff,
+      transparent: true,
+      opacity: 0.8
+    });
+
+    // Position two thrusters at the rear of the ship
+    const leftThruster = new THREE.Mesh(thrusterGeometry, thrusterMaterial);
+    leftThruster.position.set(-0.6, 0, -1.8);
+    leftThruster.rotation.x = Math.PI / 2;
+
+    const rightThruster = new THREE.Mesh(thrusterGeometry, thrusterMaterial);
+    rightThruster.position.set(0.6, 0, -1.8);
+    rightThruster.rotation.x = Math.PI / 2;
+
+    shipModel.add(leftThruster);
+    shipModel.add(rightThruster);
+    thrusters.push(leftThruster, rightThruster);
 
     playerGroup.add(shipModel);
-    console.log("Model loaded and painted white!");
+    console.log("Model loaded with realistic PBR and Thrusters!");
   },
   undefined,
   (error) => {
@@ -98,45 +115,79 @@ window.addEventListener('resize', () => {
   camera.bottom = -frustumSize / 2;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  composer.setSize(window.innerWidth, window.innerHeight);
 });
 
 // --- 7. The Game Loop ---
-const speed = 1.0;      
+const clock = new THREE.Clock();
+let velocity = 0;      
+const ACCELERATION = 0.05;
+const DAMPING = 0.985;  // Space Friction
+const MAX_BASE_SPEED = 2.5;
 const turnSpeed = 0.09; 
 
 function animate() {
   requestAnimationFrame(animate);
 
-  // 1. Handle Rotation
+  const deltaTime = clock.getDelta();
+
+  // 1. Update World (Orbital Motion & Asteroids)
+  world.update(deltaTime);
+
+  // 2. Physics & Warp Logic
+  const isWarp = keys.shift;
+  const currentMaxSpeed = isWarp ? MAX_BASE_SPEED * 3.0 : MAX_BASE_SPEED;
+  const currentAcc = isWarp ? ACCELERATION * 2.0 : ACCELERATION;
+
+  // 3. User Input (Throttle)
+  if (keys.w) velocity += currentAcc;
+  if (keys.s) velocity -= currentAcc;
+
+  // 4. Hard Brake (Space)
+  if (keys.space) {
+    velocity *= 0.92;
+  }
+
+  // 5. Apply Damping (Coasting)
+  velocity *= DAMPING;
+
+  // Cap Velocity
+  velocity = Math.max(-currentMaxSpeed / 2, Math.min(velocity, currentMaxSpeed));
+
+  // 6. Thruster Visuals (React to Thrust and Velocity)
+  const isThrusting = keys.w;
+  const targetScale = isThrusting ? (isWarp ? 4.0 : 2.0) + Math.random() * 0.5 : (Math.abs(velocity) * 0.5 + 0.2);
+  const targetOpacity = isThrusting ? 0.9 : (Math.abs(velocity) * 0.2 + 0.1);
+
+  thrusters.forEach(t => {
+    t.scale.set(1, targetScale, 1); 
+    t.material.opacity = THREE.MathUtils.lerp(t.material.opacity, targetOpacity, 0.1);
+  });
+
+  // 7. Handle Rotation
   if (keys.a) playerGroup.rotation.y += turnSpeed;
   if (keys.d) playerGroup.rotation.y -= turnSpeed;
 
-  // 2. Handle Forward Movement
-  if (keys.w) {
-    playerGroup.position.x += Math.sin(playerGroup.rotation.y) * speed;
-    playerGroup.position.z += Math.cos(playerGroup.rotation.y) * speed;
-  }
+  // 8. Move Ship based on Velocity
+  playerGroup.position.x += Math.sin(playerGroup.rotation.y) * velocity;
+  playerGroup.position.z += Math.cos(playerGroup.rotation.y) * velocity;
 
-  // 3. Handle Reverse
-  if (keys.s) {
-    playerGroup.position.x -= Math.sin(playerGroup.rotation.y) * speed;
-    playerGroup.position.z -= Math.cos(playerGroup.rotation.y) * speed;
-  }
+  // 9. Camera Follow (Dynamic Isometric)
+  const cameraOffset = new THREE.Vector3(50, 50, 50);
+  camera.position.copy(playerGroup.position).add(cameraOffset);
+  camera.lookAt(playerGroup.position);
 
-  // --- NEW: The Boundary Math ---
+  // 10. The Boundary Math
   const distFromCenter = Math.sqrt(playerGroup.position.x ** 2 + playerGroup.position.z ** 2);
   
-  // If the plane is outside the circle, push it exactly to the edge
-  if (distFromCenter > WORLD_RADIUS) {
-    // Math.atan2 helps us find the exact angle from the center to the player
+  if (distFromCenter > world.WORLD_RADIUS) {
     const angle = Math.atan2(playerGroup.position.x, playerGroup.position.z);
-    
-    // Snap their position back to the maximum radius
-    playerGroup.position.x = Math.sin(angle) * WORLD_RADIUS;
-    playerGroup.position.z = Math.cos(angle) * WORLD_RADIUS;
+    playerGroup.position.x = Math.sin(angle) * world.WORLD_RADIUS;
+    playerGroup.position.z = Math.cos(angle) * world.WORLD_RADIUS;
+    velocity *= 0.5; // Bounce off the wall
   }
 
-  renderer.render(scene, camera);
+  composer.render();
 }
 
 // Start the engine
