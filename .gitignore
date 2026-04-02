@@ -2,9 +2,5 @@ node_modules/
 .DS_Store
 dist/
 .env
-current_analysis.md
-fast_track_roadmap.md
-solar_system_design.md
-RUNNING_INSTRUCTIONS.md
-CHANGELOG_LOCAL.md
+
 

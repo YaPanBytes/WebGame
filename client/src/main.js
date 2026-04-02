@@ -71,34 +71,13 @@ loader.load(
 
     shipModel.traverse((child) => {
       if (child.isMesh) {
-        child.material = new THREE.MeshStandardMaterial({
-          color: 0xffffff,
-          metalness: 0.8,
-          roughness: 0.2,
-        });
+        // Change the existing material's color to pure white (Hex: 0xffffff)
+        child.material.color.setHex(0xffffff);
       }
     });
-
-    // --- NEW: Add Engine Thrusters ---
-    const thrusterGeometry = new THREE.CylinderGeometry(0.2, 0.5, 1.2, 16);
-    const thrusterMaterial = new THREE.MeshBasicMaterial({
-      color: 0x00ffff,
-      transparent: true,
-      opacity: 0.8
-    });
-
-    // Position two thrusters at the rear of the ship
-    const leftThruster = new THREE.Mesh(thrusterGeometry, thrusterMaterial);
-    leftThruster.position.set(-0.6, 0, -1.8);
-    leftThruster.rotation.x = Math.PI / 2;
-
-    const rightThruster = new THREE.Mesh(thrusterGeometry, thrusterMaterial);
-    rightThruster.position.set(0.6, 0, -1.8);
-    rightThruster.rotation.x = Math.PI / 2;
-
-    shipModel.add(leftThruster);
-    shipModel.add(rightThruster);
-    thrusters.push(leftThruster, rightThruster);
+    
+    // Scale the model down if it's too huge. Adjust these numbers as needed!
+    shipModel.scale.set(1, 1, 1); 
 
     playerGroup.add(shipModel);
     console.log("Model loaded with realistic PBR and Thrusters!");
