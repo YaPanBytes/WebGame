@@ -2,5 +2,6 @@ node_modules/
 .DS_Store
 dist/
 .env
-codebase_analysis.md
-vision_and_roadmap.md
+current_analysis.md
+fast_track_roadmap.md
+solar_system_design.md
