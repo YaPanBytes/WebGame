@@ -17,7 +17,7 @@ export class World {
     this.scene.add(this.sunLight);
 
     // Sun Visual Mesh
-    const sunGeometry = new THREE.SphereGeometry(8, 64, 64);
+    const sunGeometry = new THREE.SphereGeometry(45, 64, 64);
     const sunMaterial = new THREE.MeshStandardMaterial({ 
         emissive: 0xffaa00, 
         emissiveIntensity: 2 
@@ -33,7 +33,7 @@ export class World {
     this.scene.add(this.sunMesh);
 
     // --- 2. World Boundary ---
-    this.WORLD_RADIUS = 500; // Expanded for Galactic Explorer
+    this.WORLD_RADIUS = 2500; // Expanded to 2500 to fit Neptune (~2053)
     const boundaryGeometry = new THREE.RingGeometry(this.WORLD_RADIUS - 2, this.WORLD_RADIUS, 128);
     const boundaryMaterial = new THREE.MeshBasicMaterial({ 
       color: 0xff0000, 
@@ -52,7 +52,7 @@ export class World {
     this.generatePlanets(); 
 
     // --- 5. Asteroid Belt (Expanded) ---
-    this.generateAsteroidBelt(60, 95, 800); 
+    this.generateAsteroidBelt(360, 540, 1200); 
 
     // --- 6. Volumetric Space Dust ---
     this.createSpaceDust();
@@ -69,9 +69,9 @@ export class World {
 
     const dustVertices = [];
     for (let i = 0; i < 4000; i++) {
-        const x = (Math.random() - 0.5) * 1500;
-        const y = (Math.random() - 0.5) * 500;
-        const z = (Math.random() - 0.5) * 1500;
+        const x = (Math.random() - 0.5) * 6000;
+        const y = (Math.random() - 0.5) * 1000;
+        const z = (Math.random() - 0.5) * 6000;
         dustVertices.push(x, y, z);
     }
 
@@ -81,6 +81,8 @@ export class World {
   }
 
   generateAsteroidBelt(inner, outer, count) {
+    this.asteroidInner = inner;
+    this.asteroidOuter = outer;
     this.asteroids = [];
     for (let i = 0; i < count; i++) {
         const radius = inner + Math.random() * (outer - inner);
@@ -131,7 +133,7 @@ export class World {
         const starVertices = [];
         for (let j = 0; j < starCounts[i]; j++) {
             // Distribute stars in a giant sphere for a more natural look
-            const r = 400 + Math.random() * 1600; // Larger Radius range
+            const r = 1000 + Math.random() * 4000; // Larger Radius range for 2000 radius world
             const theta = Math.random() * Math.PI * 2;
             const phi = Math.acos(2 * Math.random() - 1);
             
@@ -159,9 +161,9 @@ export class World {
         { name: "Neptune", au: 30.05, size: 3.88, color: 0x4b70dd, roughness: 0.3 }
     ];
 
-    const DISTANCE_OFFSET = 35.0; // More space around the Sun
-    const DISTANCE_SCALE = 15.0; // Map Neptune to ~480 units (inside 500)
-    const SIZE_SCALE = 2.5;     // Larger Earth baseline for the larger world
+    const DISTANCE_OFFSET = 250.0; // Increased to accommodate larger Sun
+    const DISTANCE_SCALE = 60.0; 
+    const SIZE_SCALE = 10.0;     // Dramatically larger planets
 
     PLANET_DATA.forEach((data) => {
         const orbitRadius = DISTANCE_OFFSET + (data.au * DISTANCE_SCALE);
@@ -173,6 +175,7 @@ export class World {
         const orbitalSpeed = 0.5 / Math.sqrt(orbitRadius); 
 
         const orbitGroup = new THREE.Group();
+        orbitGroup.rotation.y = Math.random() * Math.PI * 2; // Randomize start position
         this.scene.add(orbitGroup);
 
         const planetGeometry = new THREE.SphereGeometry(planetSize, 64, 64);
@@ -212,6 +215,7 @@ export class World {
         }
 
         this.planets.push({
+            name: data.name,
             group: orbitGroup,
             speed: orbitalSpeed
         });

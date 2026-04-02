@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { keys } from './Input.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { World } from './World.js';
+import { MiniMap } from './MiniMap.js';
 
 // Post-processing imports
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -52,8 +53,11 @@ const world = new World(scene);
 
 // --- 5. The Player Object ---
 const playerGroup = new THREE.Group();
-playerGroup.position.set(0, 0, 40); // Spawn outside the Sun
+playerGroup.position.set(0, 0, 160); // Spawn safely outside the enlarged Sun
 scene.add(playerGroup);
+
+// --- 6. The Tactical Mini-Map ---
+const miniMap = new MiniMap('mini-map-canvas', world, playerGroup);
 
 // Initialize the loader
 const loader = new GLTFLoader();
@@ -121,9 +125,9 @@ window.addEventListener('resize', () => {
 // --- 7. The Game Loop ---
 const clock = new THREE.Clock();
 let velocity = 0;      
-const ACCELERATION = 0.05;
+const ACCELERATION = 0.1;
 const DAMPING = 0.985;  // Space Friction
-const MAX_BASE_SPEED = 2.5;
+const MAX_BASE_SPEED = 5.0;
 const turnSpeed = 0.09; 
 
 function animate() {
@@ -188,6 +192,7 @@ function animate() {
   }
 
   composer.render();
+  miniMap.draw();
 }
 
 // Start the engine
