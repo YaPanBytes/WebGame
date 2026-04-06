@@ -55,7 +55,19 @@ const world = new World(scene);
 const playerGroup = new THREE.Group();
 playerGroup.position.set(0, 0, 160); // Spawn safely outside the enlarged Sun
 scene.add(playerGroup);
+// --- Weapon System Variables ---
+const projectiles = []; // Array to track all active bullets on screen
+const networkProjectiles = {}; // Tracks bullets fired by other players
+const enemyBulletMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 }); // Red lasers!
+let lastFireTime = 0;
+const FIRE_COOLDOWN = 150; // Milliseconds between shots (lower = faster firing)
 
+// Create the laser template (A long, thin neon green cylinder)
+const bulletGeometry = new THREE.CylinderGeometry(0.3, 0.3, 4, 8);
+// By default, Three.js cylinders stand straight up (Y-axis). 
+// We rotate it 90 degrees so it points forward (Z-axis).
+bulletGeometry.rotateX(Math.PI / 2); 
+const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 }); // Neon Green
 const enemyPlanes = {}; 
 // We will clone your ship model for the enemies
 let enemyModelTemplate = null;
@@ -160,7 +172,55 @@ function animate() {
   const cameraOffset = new THREE.Vector3(50, 50, 50);
   camera.position.copy(playerGroup.position).add(cameraOffset);
   camera.lookAt(playerGroup.position);
+// --- NEW: Combat System ---
+  const currentTime = Date.now();
 
+ // 1. Firing Logic
+  if (keys.f && currentTime - lastFireTime > FIRE_COOLDOWN) {
+    const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
+    
+    // Start at the ship's center...
+    bullet.position.copy(playerGroup.position);
+    bullet.rotation.y = playerGroup.rotation.y;
+
+    // --- NEW: The Spawn Offset ---
+    // Push the bullet 5 units forward so it spawns at the "nose" of the ship, not inside it!
+    const offset = 5; 
+    bullet.position.x += Math.sin(bullet.rotation.y) * offset;
+    bullet.position.z += Math.cos(bullet.rotation.y) * offset;
+    
+    scene.add(bullet);
+    projectiles.push(bullet);
+    lastFireTime = currentTime;
+
+    if (socket.connected) {
+      socket.emit('fire', {
+        x: bullet.position.x,
+        z: bullet.position.z,
+        rotation: bullet.rotation.y
+      });
+    }
+  }
+
+  // 2. Projectile Movement
+  const bulletSpeed = MAX_BASE_SPEED * 8.0; // Lasers should be way faster than ships
+
+  // We loop backward through the array. This is a classic game dev trick 
+  // so we can safely delete bullets from the array without breaking the loop!
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    let p = projectiles[i];
+    
+    // Move the bullet forward based on its rotation
+    p.position.x += Math.sin(p.rotation.y) * bulletSpeed;
+    p.position.z += Math.cos(p.rotation.y) * bulletSpeed;
+
+    // Cleanup: If the bullet flies past the world boundary, delete it to save memory
+    const bulletDist = Math.sqrt(p.position.x ** 2 + p.position.z ** 2);
+    if (bulletDist > world.WORLD_RADIUS) {
+      scene.remove(p);
+      projectiles.splice(i, 1);
+    }
+  }
   // 10. The Boundary Math
   const distFromCenter = Math.sqrt(playerGroup.position.x ** 2 + playerGroup.position.z ** 2);
   
@@ -214,6 +274,66 @@ function animate() {
       if (!serverState.players[id]) {
         scene.remove(enemyPlanes[id]);
         delete enemyPlanes[id];
+      }
+    }
+    // ... (Your enemyPlanes cleanup loop is right above this)
+
+    // --- 1. SYNC SERVER PROJECTILES (RED LASERS) ---
+    if (serverState.projectiles) {
+      const activeServerBullets = {};
+
+      serverState.projectiles.forEach(p => {
+        // Ignore our own bullets (we are already drawing them in neon green!)
+        if (p.ownerId === socket.id) return; 
+
+        activeServerBullets[p.id] = true;
+
+        // If we haven't drawn this enemy bullet yet, spawn it
+        if (!networkProjectiles[p.id]) {
+           const bullet = new THREE.Mesh(bulletGeometry, enemyBulletMaterial);
+           scene.add(bullet);
+           networkProjectiles[p.id] = bullet;
+        }
+
+        // Snap the red laser to the exact position the server says it is
+        networkProjectiles[p.id].position.set(p.x, playerGroup.position.y, p.z);
+        networkProjectiles[p.id].rotation.y = p.rotation;
+      });
+
+      // Cleanup: Remove red lasers that hit something or flew off the map
+      for (let id in networkProjectiles) {
+        if (!activeServerBullets[id]) {
+          scene.remove(networkProjectiles[id]);
+          delete networkProjectiles[id];
+        }
+      }
+    }
+
+    // --- 2. SYNC HEALTH & RESPAWN ---
+    if (serverState.players[socket.id]) {
+      const myServerData = serverState.players[socket.id];
+      
+      // Update HTML Health Bar
+      const hpFill = document.getElementById('health-bar-fill');
+      if (hpFill) {
+        hpFill.style.width = myServerData.hp + '%';
+        // Turn health bar red if below 30 HP
+        hpFill.style.background = myServerData.hp > 30 ? '#00ff00' : '#ff0000'; 
+      }
+
+      // Teleportation Check for Respawns
+      // If the server's X/Z is massively different from our local X/Z, 
+      // it means the server killed us and forced a respawn!
+      const distToServer = Math.sqrt(
+        (playerGroup.position.x - myServerData.x) ** 2 +
+        (playerGroup.position.z - myServerData.z) ** 2
+      );
+
+      if (distToServer > 20) {
+        console.log("💥 Ship Destroyed! Warping to new sector...");
+        playerGroup.position.x = myServerData.x;
+        playerGroup.position.z = myServerData.z;
+        velocity = 0; // Kill momentum so you don't instantly fly away on spawn
       }
     }
   }

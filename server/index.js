@@ -3,35 +3,32 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 
-// 1. Setup Express and HTTP Server
 const app = express();
 app.use(cors());
 const server = http.createServer(app);
 
-// 2. Setup Socket.io and allow your Vite frontend to connect
 const io = new Server(server, {
-  cors: {
-    origin: "*", // Allows any frontend to connect (useful for local dev)
-    methods: ["GET", "POST"]
-  }
+  cors: { origin: "*", methods: ["GET", "POST"] }
 });
 
-// 3. The Master State
-// This object holds the coordinates and rotations of every player in the game
+// --- Game Constants ---
+const BULLET_SPEED = 8; 
+const HITBOX_RADIUS = 8; // <--- Increase this from 5 to 12 (or even 15)
+const WORLD_RADIUS = 100000;
+// --- NEW: Added projectiles array ---
 const gameState = {
-  players: {}
+  players: {},
+  projectiles: [] 
 };
 
-// 4. Handle Connections & Client Updates
 io.on('connection', (socket) => {
-  console.log(`[+] Player joined the solar system: ${socket.id}`);
+  console.log(`[+] Player joined: ${socket.id}`);
 
-  // When a player joins, give them a blank entry in the dictionary
-  gameState.players[socket.id] = { x: 0, z: 0, rotation: 0 };
+  // --- NEW: Give players 100 HP when they join ---
+  gameState.players[socket.id] = { x: 0, z: 0, rotation: 0, hp: 100 };
 
-  // Listen for the physics calculations coming from the client's browser
+  // Listen for movement
   socket.on('playerMoved', (data) => {
-    // Update the server's record of this player's position
     if (gameState.players[socket.id]) {
       gameState.players[socket.id].x = data.x;
       gameState.players[socket.id].z = data.z;
@@ -39,21 +36,74 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Cleanup when a player closes their tab
+  // --- NEW: Listen for firing ---
+  socket.on('fire', (data) => {
+    gameState.projectiles.push({
+      id: Math.random().toString(36).substr(2, 9), // Give the bullet a unique ID
+      ownerId: socket.id, // So you don't shoot yourself
+      x: data.x,
+      z: data.z,
+      rotation: data.rotation
+    });
+  });
+
   socket.on('disconnect', () => {
     console.log(`[-] Player left: ${socket.id}`);
     delete gameState.players[socket.id];
   });
 });
 
-// 5. The Heartbeat (Broadcast Loop)
-// Send the updated master state to every connected player 30 times per second
+// The Heartbeat & Physics Loop
 setInterval(() => {
+  // --- NEW: Move bullets and check collisions ---
+  // Loop backward safely
+  for (let i = gameState.projectiles.length - 1; i >= 0; i--) {
+    let p = gameState.projectiles[i];
+
+    // 1. Move the bullet forward
+    p.x += Math.sin(p.rotation) * BULLET_SPEED;
+    p.z += Math.cos(p.rotation) * BULLET_SPEED;
+
+    let bulletDestroyed = false;
+
+    // 2. Check collision against all players
+    for (let playerId in gameState.players) {
+      if (playerId === p.ownerId) continue; // Ignore the player who shot it
+
+      let player = gameState.players[playerId];
+      
+      // The Pythagorean theorem!
+      let dist = Math.sqrt((player.x - p.x) ** 2 + (player.z - p.z) ** 2);
+      
+      if (dist < HITBOX_RADIUS) {
+        // HIT! Deduct health and flag bullet for destruction
+        player.hp -= 10;
+        bulletDestroyed = true;
+        
+        // 3. Death & Respawn Logic
+        if (player.hp <= 0) {
+          console.log(`[!] ${playerId} was destroyed! Respawning...`);
+          // Teleport them to a random location inside the arena
+          player.x = (Math.random() - 0.5) * WORLD_RADIUS;
+          player.z = (Math.random() - 0.5) * WORLD_RADIUS;
+          player.hp = 100; // Restore health
+        }
+        break; // Bullet vanishes after hitting one person
+      }
+    }
+
+    // 4. Cleanup: Remove bullet if it hit someone OR flew off the map
+    let distFromCenter = Math.sqrt(p.x ** 2 + p.z ** 2);
+    if (bulletDestroyed || distFromCenter > WORLD_RADIUS) {
+      gameState.projectiles.splice(i, 1);
+    }
+  }
+
+  // Broadcast the new truth to everyone
   io.emit('stateUpdate', gameState);
 }, 1000 / 30);
 
-// 6. Start the Engine
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`🚀 Multiplayer Server is running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT} with Combat Systems Online`);
 });

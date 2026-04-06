@@ -5,8 +5,11 @@ export const keys = {
   s: false,
   d: false,
   space: false,
-  shift: false
+  shift: false, // Since you added the warp drive!
+  f: false      // <--- THIS MUST BE HERE
 };
+
+// ... keep your existing event listeners below ...
 
 // When a key is pressed down, set its value to true
 window.addEventListener('keydown', (e) => {
