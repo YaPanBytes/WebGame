@@ -129,7 +129,7 @@ const thrusterCores = [leftCore, rightCore];
 const thrusterGlows = [leftGlow, rightGlow];
 
 // Load the 3D model from the public folder
-loader.load('/assets/ship.glb', (gltf) => {
+loader.load('assets/ship.glb', (gltf) => {
     const shipModel = gltf.scene;
 
     shipModel.traverse((child) => {
@@ -277,12 +277,9 @@ function animate() {
   // --- 5.5 Combat Input (Fire) — SPACEBAR fires, BLOCKED while boosting ---
   const now = Date.now();
   if (keys.space && !isBoosting && now - lastFireTime > FIRE_COOLDOWN) {
-    const spawnOffset = 6;
-    socket.emit('fire', {
-      x: playerGroup.position.x + Math.sin(playerGroup.rotation.y) * spawnOffset,
-      z: playerGroup.position.z + Math.cos(playerGroup.rotation.y) * spawnOffset,
-      rotation: playerGroup.rotation.y
-    });
+    // We no longer send coordinates. The server will use its own authoritative
+    // position to spawn the bullet correctly.
+    socket.emit('fire');
     lastFireTime = now;
     console.log('🔥 Pew Pew!');
   }
@@ -330,12 +327,16 @@ function animate() {
   );
 
   // 7. Handle Rotation — A = turn left, D = turn right (from behind-the-ship POV)
-  if (keys.a) playerGroup.rotation.y += turnSpeed;
-  if (keys.d) playerGroup.rotation.y -= turnSpeed;
+  // We use (deltaTime * 60) to normalize the rotation speed to 60 FPS.
+  const frameTurnSpeed = turnSpeed * (deltaTime * 60);
+  if (keys.a) playerGroup.rotation.y += frameTurnSpeed;
+  if (keys.d) playerGroup.rotation.y -= frameTurnSpeed;
 
   // 8. Move Ship based on Velocity
-  playerGroup.position.x += Math.sin(playerGroup.rotation.y) * velocity;
-  playerGroup.position.z += Math.cos(playerGroup.rotation.y) * velocity;
+  // We normalize velocity application to 60 FPS using deltaTime.
+  const frameVelocity = velocity * (deltaTime * 60);
+  playerGroup.position.x += Math.sin(playerGroup.rotation.y) * frameVelocity;
+  playerGroup.position.z += Math.cos(playerGroup.rotation.y) * frameVelocity;
 
   // 9. Camera Follow (Dynamic Isometric)
   const cameraOffset = new THREE.Vector3(50, 50, 50);

@@ -24,7 +24,7 @@ export class World {
     });
     
     // Try to load Sun texture
-    this.textureLoader.load('/textures/planets/sun.jpg', (tex) => {
+    this.textureLoader.load('textures/planets/sun.jpg', (tex) => {
         sunMaterial.map = tex;
         sunMaterial.needsUpdate = true;
     });
@@ -186,7 +186,7 @@ export class World {
         });
 
         // Async Texture Loading
-        this.textureLoader.load(`/textures/planets/${data.name.toLowerCase()}.jpg`, (tex) => {
+        this.textureLoader.load(`textures/planets/${data.name.toLowerCase()}.jpg`, (tex) => {
             tex.anisotropy = 8; // Keep it sharp at isometric angles
             planetMaterial.map = tex;
             planetMaterial.color.set(0xffffff); // Remove tint to show raw texture
