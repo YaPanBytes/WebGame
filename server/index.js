@@ -310,9 +310,11 @@ function handlePlayerDeath(pid, killerId = null) {
 }
 
 // --- Physics Constants ---
-const BULLET_SPEED       = 4.0;
-const BULLET_MAX_DISTANCE = 1000;
-const HITBOX_RADIUS      = 5.0;
+// BULLET_SPEED must exceed the client's MAX_BASE_SPEED (5.0) by a wide margin so bullets
+// always travel forward away from the firing ship, never appear to run alongside it.
+const BULLET_SPEED        = 18.0;
+const BULLET_MAX_DISTANCE = 2000; // increased to compensate for faster travel
+const HITBOX_RADIUS       = 5.0;
 
 // --- Game Loop (30 Hz) ---
 setInterval(() => {

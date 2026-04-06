@@ -61,10 +61,11 @@ const enemyPlanes = {};
 let enemyModelTemplate = null;
 
 // --- Bullet Visuals ---
-// SphereGeometry: visible from any camera angle (cylinder end-on is nearly invisible isometrically)
-// MeshBasicMaterial: always shows its color regardless of lighting distance — reliable in deep space
+// CylinderGeometry oriented along the Z-axis so it reads as a cylinder/missile from the isometric view.
+// rotateX(Math.PI/2) pre-rotates the geometry so each mesh's +Z axis is the elongated direction.
 const projectileMeshes = {};
-const bulletGeometry = new THREE.SphereGeometry(1.2, 8, 8);
+const bulletGeometry = new THREE.CylinderGeometry(0.5, 0.5, 5, 8);
+bulletGeometry.rotateX(Math.PI / 2); // elongated along Z so it aligns with flight direction
 const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xff3300 });
 
 // --- 6. The Tactical Mini-Map ---
@@ -116,7 +117,7 @@ let velocity = 0;
 const ACCELERATION = 0.1;
 const DAMPING = 0.985;  // Space Friction
 const MAX_BASE_SPEED = 5.0;
-const turnSpeed = 0.09; 
+const turnSpeed = 0.09;
 
 // --- Combat Settings ---
 let lastFireTime = 0;
@@ -179,26 +180,23 @@ function animate() {
   const currentAcc = isWarp ? ACCELERATION * 2.0 : ACCELERATION;
 
   // 3. User Input (Throttle)
-  if (keys.w) velocity += currentAcc;
-  if (keys.s) velocity -= currentAcc;
+  if (keys.w) velocity += currentAcc;      // W = accelerate forward
+  if (keys.s) velocity -= currentAcc * 1.5; // S = decelerate / reverse thrust
 
-  // 4. Hard Brake (Space)
-  if (keys.space) {
-    velocity *= 0.92;
-  }
-
-  // 5. Apply Damping (Coasting)
+  // 4. Apply Damping (Coasting in space)
   velocity *= DAMPING;
 
   // Cap Velocity
   velocity = Math.max(-currentMaxSpeed / 2, Math.min(velocity, currentMaxSpeed));
 
-  // --- 5.5 Combat Input (Fire) ---
+  // --- 5.5 Combat Input (Fire) — SPACEBAR fires ---
   const now = Date.now();
-  if (keys.f && now - lastFireTime > FIRE_COOLDOWN) {
+  if (keys.space && now - lastFireTime > FIRE_COOLDOWN) {
+    // Spawn bullet slightly ahead of the ship so it doesn't hit self
+    const spawnOffset = 6;
     socket.emit('fire', {
-      x: playerGroup.position.x,
-      z: playerGroup.position.z,
+      x: playerGroup.position.x + Math.sin(playerGroup.rotation.y) * spawnOffset,
+      z: playerGroup.position.z + Math.cos(playerGroup.rotation.y) * spawnOffset,
       rotation: playerGroup.rotation.y
     });
     lastFireTime = now;
@@ -215,9 +213,9 @@ function animate() {
     t.material.opacity = THREE.MathUtils.lerp(t.material.opacity, targetOpacity, 0.1);
   });
 
-  // 7. Handle Rotation
-  if (keys.a) playerGroup.rotation.y += turnSpeed;
-  if (keys.d) playerGroup.rotation.y -= turnSpeed;
+  // 7. Handle Rotation — A = turn right, D = turn left
+  if (keys.a) playerGroup.rotation.y -= turnSpeed;
+  if (keys.d) playerGroup.rotation.y += turnSpeed;
 
   // 8. Move Ship based on Velocity
   playerGroup.position.x += Math.sin(playerGroup.rotation.y) * velocity;
@@ -367,11 +365,28 @@ function animate() {
           }
         }, 150);
       }
+
+      // 2. Check for Death (HP hit 0 or below) — hide enemy briefly so spawn point isn't revealed
+      const justDied = enemyPlaneObj.lastHp > 0 && serverPlayerData.hp <= 0;
+      const justRespawned = enemyPlaneObj.lastHp <= 0 && serverPlayerData.hp > 0;
+
+      if (justDied) {
+        // Hide the ship immediately on death — keep hidden until we confirm a new HP>0 reading
+        enemyPlaneObj.group.visible = false;
+        enemyPlaneObj.hiddenUntilRespawn = true;
+      }
+
+      if (justRespawned) {
+        // They got a new position from the server — hide for 1.5s more to mask the spawn warp
+        enemyPlaneObj.group.visible = false;
+        enemyPlaneObj.hiddenUntilRespawn = false;
+        enemyPlaneObj.hideUntil = Date.now() + 1500;
+      }
       
       // Update our local tracking variable
       enemyPlaneObj.lastHp = serverPlayerData.hp;
 
-      // --- NEW: Physics & Sync ---
+      // --- Physics & Sync ---
       enemyPlaneObj.group.position.x = serverPlayerData.x;
       enemyPlaneObj.group.position.z = serverPlayerData.z;
       
@@ -381,8 +396,9 @@ function animate() {
         0.2
       );
       
-      // Ensure they are always visible in the main view
-      enemyPlaneObj.group.visible = true;
+      // Only make visible if not in death-hide or post-respawn-hide window
+      const isHidden = enemyPlaneObj.hiddenUntilRespawn || (enemyPlaneObj.hideUntil && Date.now() < enemyPlaneObj.hideUntil);
+      enemyPlaneObj.group.visible = !isHidden;
     }
 
     // Cleanup: Remove disconnected planes
@@ -410,6 +426,7 @@ function animate() {
       }
 
       // Update position and rotation
+      // The cylinder geometry was pre-rotated along Z, so matching rotation.y aligns it to flight dir
       projectileMeshes[p.id].position.set(p.x, 0, p.z);
       projectileMeshes[p.id].rotation.y = p.rotation;
     });
