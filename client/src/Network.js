@@ -1,18 +1,35 @@
 import { io } from 'socket.io-client';
+import { getPilotToken } from './Auth.js';
 
-// 1. Connect to the local Node.js server we built
-export const socket = io('http://localhost:3000');
+// 1. Connect to the server. Set VITE_SERVER_URL in .env to override (e.g. for production).
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000';
+export const socket = io(SERVER_URL);
 
 // 2. Create a variable to hold the latest truth from the server
 export let serverState = { players: {} };
 
 // 3. Connection Events
 socket.on('connect', () => {
-  console.log('🔌 Connected to server! My ID is:', socket.id);
+  const token = getPilotToken();
+  console.log('🔌 Connected to server! Pilot Token:', token);
+  
+  // Send our unique persistent token to the server
+  socket.emit('authenticate', token);
+
+  const statusEl = document.getElementById('server-status');
+  if (statusEl) {
+    statusEl.innerText = 'Connected as ' + token;
+    statusEl.style.color = '#00ff00';
+  }
 });
 
 socket.on('disconnect', () => {
   console.log('❌ Disconnected from server');
+  const statusEl = document.getElementById('server-status');
+  if (statusEl) {
+    statusEl.innerText = 'Lost Connection...';
+    statusEl.style.color = '#ff0000';
+  }
 });
 
 // 4. The Data Receiver

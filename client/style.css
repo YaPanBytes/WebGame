@@ -106,7 +106,7 @@ body, html {
   background: rgba(10, 20, 40, 0.5);
   backdrop-filter: blur(8px);
   border: 1px solid rgba(0, 255, 255, 0.4);
-  border-radius: 12px;
+  border-radius: 50%;
   box-shadow: 0 0 20px rgba(0, 255, 255, 0.15);
   cursor: pointer;
   z-index: 100;
@@ -131,10 +131,47 @@ body, html {
   background: rgba(5, 10, 20, 0.95);
   border: 2px solid #00ffff;
   box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
-  border-radius: 20px;
+  border-radius: 50%;
   cursor: default; /* No pointer cursor when maximized */
 }
 
 #mini-map-canvas {
   display: block;
+}
+
+/* --- Controls Legend --- */
+#controls-hint {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  font-size: 11px;
+  line-height: 1.8;
+  opacity: 0.75;
+  transition: opacity 0.2s;
+}
+
+#controls-hint:hover {
+  opacity: 1;
+}
+
+.controls-title {
+  color: #00ffff;
+  font-weight: bold;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  font-size: 10px;
+}
+
+kbd {
+  display: inline-block;
+  background: rgba(0, 255, 255, 0.1);
+  border: 1px solid rgba(0, 255, 255, 0.4);
+  border-radius: 3px;
+  padding: 0px 5px;
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  color: #00ffff;
+  min-width: 18px;
+  text-align: center;
 }

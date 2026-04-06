@@ -28,7 +28,7 @@ const camera = new THREE.OrthographicCamera(
   frustumSize / 2,             // top
   frustumSize / -2,            // bottom
   1,                           // near clipping plane
-  1000                         // far clipping plane
+  5000                         // far clipping plane (must reach Neptune at ~2053 units)
 );
 
 camera.position.set(50, 50, 50);
@@ -51,14 +51,22 @@ composer.addPass(bloomPass);
 // --- 4. The World Engine ---
 const world = new World(scene);
 
-// --- 5. The Player Object ---
 const playerGroup = new THREE.Group();
-playerGroup.position.set(0, 0, 160); // Spawn safely outside the enlarged Sun
+playerGroup.visible = false; // Stay hidden until we get our first spawn location
+// Removed hardcoded spawn: Server now tells us where to start via forceRespawn
 scene.add(playerGroup);
 
 const enemyPlanes = {}; 
 // We will clone your ship model for the enemies
 let enemyModelTemplate = null;
+
+// --- Bullet Visuals ---
+// SphereGeometry: visible from any camera angle (cylinder end-on is nearly invisible isometrically)
+// MeshBasicMaterial: always shows its color regardless of lighting distance — reliable in deep space
+const projectileMeshes = {};
+const bulletGeometry = new THREE.SphereGeometry(1.2, 8, 8);
+const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0xff3300 });
+
 // --- 6. The Tactical Mini-Map ---
 const miniMap = new MiniMap('mini-map-canvas', world, playerGroup);
 
@@ -110,13 +118,60 @@ const DAMPING = 0.985;  // Space Friction
 const MAX_BASE_SPEED = 5.0;
 const turnSpeed = 0.09; 
 
+// --- Combat Settings ---
+let lastFireTime = 0;
+let lastEnvDamageTime = 0;
+const FIRE_COOLDOWN = 180; // ~5.5 shots per second
+let hasReceivedSpawn = false; // Prevent logic before we get coordinates from server
+
+// --- NEW: Handle initial sync when we first connect ---
+socket.on('connect', () => {
+    // We strictly wait for the server to send us a 'forceRespawn' with our random location
+    console.log("[📡] Connected to solar system. Waiting for spawn coordinates...");
+});
+
+// --- NEW: Handle Server-Forced Respawn Override ---
+socket.on('forceRespawn', (data) => {
+  playerGroup.position.x = data.x;
+  playerGroup.position.z = data.z;
+  playerGroup.visible = true; // Show ship now that it's moved from the origin
+  hasReceivedSpawn = true; // We now have valid server-sent coordinates
+  
+  if (data.repel) {
+    velocity = -Math.abs(velocity) * 0.8 - 2.0; // Hard bounce back
+    // Flash HUD yellow/orange for damage
+    const hpBarContainer = document.querySelector('.health-bar-container');
+    if(hpBarContainer) {
+      hpBarContainer.style.boxShadow = "0 0 20px 5px rgba(255, 170, 0, 0.8)";
+      setTimeout(() => { hpBarContainer.style.boxShadow = "none"; }, 300);
+    }
+  } else {
+    velocity = 0; // Stop moving
+    // Flash HUD red to signify death
+    const hpBarContainer = document.querySelector('.health-bar-container');
+    if(hpBarContainer) {
+      hpBarContainer.style.boxShadow = "0 0 20px 5px rgba(255, 0, 0, 0.8)";
+      setTimeout(() => { hpBarContainer.style.boxShadow = "none"; }, 500);
+    }
+  }
+});
+
 function animate() {
   requestAnimationFrame(animate);
 
   const deltaTime = clock.getDelta();
 
+  // 1. HARD STOP: Do not process ANY game logic or network updates 
+  // until we receive our first server-authorized spawn location.
+  if (!hasReceivedSpawn) {
+      if (world) world.update(deltaTime, serverState);
+      composer.render();
+      miniMap.draw();
+      return;
+  }
+
   // 1. Update World (Orbital Motion & Asteroids)
-  world.update(deltaTime);
+  world.update(deltaTime, serverState);
 
   // 2. Physics & Warp Logic
   const isWarp = keys.shift;
@@ -137,6 +192,18 @@ function animate() {
 
   // Cap Velocity
   velocity = Math.max(-currentMaxSpeed / 2, Math.min(velocity, currentMaxSpeed));
+
+  // --- 5.5 Combat Input (Fire) ---
+  const now = Date.now();
+  if (keys.f && now - lastFireTime > FIRE_COOLDOWN) {
+    socket.emit('fire', {
+      x: playerGroup.position.x,
+      z: playerGroup.position.z,
+      rotation: playerGroup.rotation.y
+    });
+    lastFireTime = now;
+    console.log("🔥 Pew Pew!");
+  }
 
   // 6. Thruster Visuals (React to Thrust and Velocity)
   const isThrusting = keys.w;
@@ -168,10 +235,74 @@ function animate() {
     const angle = Math.atan2(playerGroup.position.x, playerGroup.position.z);
     playerGroup.position.x = Math.sin(angle) * world.WORLD_RADIUS;
     playerGroup.position.z = Math.cos(angle) * world.WORLD_RADIUS;
-    velocity *= 0.5; // Bounce off the wall
+    velocity *= -0.5; // Bounce off the wall
   }
-// ... [Your Boundary Math] ...
   
+  // --- 10.5 Environment Collisions (Client-Side) ---
+  const myPos = playerGroup.position;
+  const SHIP_HITBOX = 5;
+  const nowTime = Date.now();
+  
+  // Check Sun
+  if (world.sunMesh) {
+    const sunDist = Math.sqrt(myPos.x ** 2 + myPos.z ** 2);
+    if (sunDist < 45 + SHIP_HITBOX) {
+        // Bounce
+        velocity = -Math.abs(velocity) * 0.8 - 2.0;
+        
+        // Push out slightly to prevent getting stuck
+        const pushAngle = Math.atan2(myPos.x, myPos.z);
+        myPos.x = Math.sin(pushAngle) * (45 + SHIP_HITBOX + 1);
+        myPos.z = Math.cos(pushAngle) * (45 + SHIP_HITBOX + 1);
+
+        if (nowTime - lastEnvDamageTime > 500) {
+            socket.emit('takeDamage', 20);
+            lastEnvDamageTime = nowTime;
+            
+            // Flash HUD
+            const hpBarContainer = document.querySelector('.health-bar-container');
+            if(hpBarContainer) {
+                hpBarContainer.style.boxShadow = "0 0 20px 5px rgba(255, 170, 0, 0.8)";
+                setTimeout(() => { hpBarContainer.style.boxShadow = "none"; }, 300);
+            }
+        }
+    }
+  }
+
+  // Check Planets
+  world.planets.forEach(p => {
+      const planetMesh = p.group.children[0];
+      if (planetMesh) {
+          const planetWorldPos = new THREE.Vector3();
+          planetMesh.getWorldPosition(planetWorldPos);
+          
+          const planetRadius = planetMesh.geometry.parameters.radius;
+          const dist = Math.sqrt((myPos.x - planetWorldPos.x)**2 + (myPos.z - planetWorldPos.z)**2);
+          
+          if (dist < planetRadius + SHIP_HITBOX) {
+             // Bounce
+             velocity = -Math.abs(velocity) * 0.8 - 2.0;
+
+             // WE NEED TO PUSH OUT HERE!
+             const pushAngle = Math.atan2(myPos.x - planetWorldPos.x, myPos.z - planetWorldPos.z);
+             myPos.x = planetWorldPos.x + Math.sin(pushAngle) * (planetRadius + SHIP_HITBOX + 1);
+             myPos.z = planetWorldPos.z + Math.cos(pushAngle) * (planetRadius + SHIP_HITBOX + 1);
+
+             if (nowTime - lastEnvDamageTime > 500) {
+                 socket.emit('takeDamage', 20);
+                 lastEnvDamageTime = nowTime;
+                 
+                 // Flash HUD
+                 const hpBarContainer = document.querySelector('.health-bar-container');
+                 if(hpBarContainer) {
+                     hpBarContainer.style.boxShadow = "0 0 20px 5px rgba(255, 170, 0, 0.8)";
+                     setTimeout(() => { hpBarContainer.style.boxShadow = "none"; }, 300);
+                 }
+             }
+          }
+      }
+  });
+
   // --- NEW: Tell the server where we calculated we should be ---
   if (socket.connected) {
     socket.emit('playerMoved', {
@@ -180,43 +311,140 @@ function animate() {
       rotation: playerGroup.rotation.y
     });
   }
-  // --- NEW: Sync Enemy Planes ---
+
+  // --- NEW: Sync Enemy Planes & Hit Visuals ---
   if (enemyModelTemplate && serverState.players) {
-    // Loop through all players the server knows about
     for (const id in serverState.players) {
-      // Ignore ourselves!
       if (id === socket.id) continue;
 
       const serverPlayerData = serverState.players[id];
 
-      // If this enemy doesn't exist on our screen yet, create them!
       if (!enemyPlanes[id]) {
         const newEnemy = new THREE.Group();
-        newEnemy.add(enemyModelTemplate.clone()); // Clone the 3D model
+        // Clone the model deeply
+        const modelClone = enemyModelTemplate.clone();
+        
+        // Ensure every clone has its own unique color material so they can flash independently
+        modelClone.traverse((child) => {
+          if (child.isMesh) {
+            child.material = child.material.clone();
+          }
+        });
+
+        newEnemy.add(modelClone);
+        newEnemy.visible = false; // Initially hide untill mapped to server coordinates
         scene.add(newEnemy);
-        enemyPlanes[id] = newEnemy;
+        
+        // Store the previous HP so we know if they take damage
+        enemyPlanes[id] = {
+           group: newEnemy,
+           model: modelClone,
+           lastHp: serverPlayerData.hp
+        };
       }
 
-      // Snap the enemy plane to the server's coordinates
-      enemyPlanes[id].position.x = serverPlayerData.x;
-      enemyPlanes[id].position.z = serverPlayerData.z;
+      const enemyPlaneObj = enemyPlanes[id];
       
-      // We use lerp (Linear Interpolation) for rotation so it looks smooth, not snappy
-      enemyPlanes[id].rotation.y = THREE.MathUtils.lerp(
-        enemyPlanes[id].rotation.y, 
+      // 1. Check for Hit (HP dropped)
+      if (serverPlayerData.hp < enemyPlaneObj.lastHp && serverPlayerData.hp > 0) {
+        // Flash Red!
+        enemyPlaneObj.model.traverse((child) => {
+          if (child.isMesh) {
+            child.material.color.setHex(0xff0000); 
+            child.material.emissive.setHex(0x550000);
+          }
+        });
+        
+        // Reset color after 150ms
+        setTimeout(() => {
+          if (enemyPlanes[id]) { // Check if they didn't disconnect
+             enemyPlanes[id].model.traverse((child) => {
+               if (child.isMesh) {
+                 child.material.color.setHex(0xffffff);
+                 child.material.emissive.setHex(0x000000);
+               }
+             });
+          }
+        }, 150);
+      }
+      
+      // Update our local tracking variable
+      enemyPlaneObj.lastHp = serverPlayerData.hp;
+
+      // --- NEW: Physics & Sync ---
+      enemyPlaneObj.group.position.x = serverPlayerData.x;
+      enemyPlaneObj.group.position.z = serverPlayerData.z;
+      
+      enemyPlaneObj.group.rotation.y = THREE.MathUtils.lerp(
+        enemyPlaneObj.group.rotation.y, 
         serverPlayerData.rotation, 
         0.2
       );
+      
+      // Ensure they are always visible in the main view
+      enemyPlaneObj.group.visible = true;
     }
 
-    // Cleanup: Remove planes that disconnected
+    // Cleanup: Remove disconnected planes
     for (const id in enemyPlanes) {
       if (!serverState.players[id]) {
-        scene.remove(enemyPlanes[id]);
+        scene.remove(enemyPlanes[id].group);
         delete enemyPlanes[id];
       }
     }
   }
+
+  // --- NEW: Projectile Synchronization ---
+  if (serverState.projectiles) {
+    // 1. Update/Create projectile meshes
+    const currentProjectileIds = new Set();
+    
+    serverState.projectiles.forEach(p => {
+      currentProjectileIds.add(p.id);
+
+      if (!projectileMeshes[p.id]) {
+        // Create new bullet mesh
+        const mesh = new THREE.Mesh(bulletGeometry, bulletMaterial);
+        scene.add(mesh);
+        projectileMeshes[p.id] = mesh;
+      }
+
+      // Update position and rotation
+      projectileMeshes[p.id].position.set(p.x, 0, p.z);
+      projectileMeshes[p.id].rotation.y = p.rotation;
+    });
+
+    // 2. Remove dead projectiles
+    for (const id in projectileMeshes) {
+      if (!currentProjectileIds.has(id)) {
+        scene.remove(projectileMeshes[id]);
+        delete projectileMeshes[id];
+      }
+    }
+  }
+
+  // --- NEW: Update Health Bar HUD & Score ---
+  if (serverState.players && serverState.players[socket.id]) {
+    const myData = serverState.players[socket.id];
+    
+    // 1. Health Bar
+    const hpBar = document.getElementById('health-bar');
+    const hpText = document.getElementById('health-text');
+    if (hpBar && hpText) {
+      hpBar.style.width = `${myData.hp}%`;
+      hpText.innerText = myData.hp;
+      if (myData.hp > 60) hpBar.style.backgroundColor = '#00ffaa';
+      else if (myData.hp > 30) hpBar.style.backgroundColor = '#ffaa00';
+      else hpBar.style.backgroundColor = '#ff4444';
+    }
+
+    // 2. Score
+    const scoreEl = document.getElementById('score');
+    if (scoreEl && myData.kills !== undefined) {
+      scoreEl.innerText = myData.kills;
+    }
+  }
+
   composer.render();
   miniMap.draw();
 }

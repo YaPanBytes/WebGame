@@ -1,4 +1,15 @@
 {
+  "name": "webgame",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix client\" \"npm run start --prefix server\"",
+    "start:client": "npm run dev --prefix client",
+    "start:server": "npm run start --prefix server"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
   "dependencies": {
     "cors": "^2.8.6",
     "express": "^5.2.1",

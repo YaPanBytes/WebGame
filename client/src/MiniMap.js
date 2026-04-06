@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { socket, serverState } from './Network.js';
 
 export class MiniMap {
   constructor(canvasId, world, player) {
@@ -60,7 +61,7 @@ export class MiniMap {
     this.canvas.height = size * window.devicePixelRatio;
     this.canvas.style.width = `${size}px`;
     this.canvas.style.height = `${size}px`;
-    this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    this.ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
   }
 
   draw() {
@@ -141,6 +142,34 @@ export class MiniMap {
           this.ctx.fillText(p.name, mapX, mapY + 15);
       }
     });
+
+    // 3.5 Draw Other Players (Multiplayer)
+    if (serverState && serverState.players) {
+        for (const id in serverState.players) {
+            if (id === socket.id) continue; // Skip local player (drawn below)
+
+            const pData = serverState.players[id];
+            
+            // --- NEW: Stealth Mechanic for Radar ---
+            const VISIBILITY_WINDOW = 1500; // 1.5 seconds
+            const isVisible = (Date.now() - (pData.lastShot || 0)) < VISIBILITY_WINDOW;
+            if (!isVisible) continue;
+
+            const enemyX = centerX + pData.x * scale;
+            const enemyY = centerY + pData.z * scale;
+
+            this.ctx.beginPath();
+            this.ctx.arc(enemyX, enemyY, 3, 0, Math.PI * 2);
+            this.ctx.fillStyle = '#ff3333'; // Red for other players
+            this.ctx.fill();
+
+            if (this.isMaximized) {
+                this.ctx.fillStyle = 'rgba(255, 51, 51, 0.8)';
+                this.ctx.font = '8px Courier New';
+                this.ctx.fillText("Pilot", enemyX, enemyY + 10);
+            }
+        }
+    }
 
     // 4. Draw Player
     const playerX = centerX + this.player.position.x * scale;
