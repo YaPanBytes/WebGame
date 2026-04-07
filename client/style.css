@@ -67,17 +67,6 @@ body, html {
   transition: width 0.2s ease-out, background-color 0.2s;
 }
 
-/* Network Status */
-#server-status {
-  position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  color: #ffaa00;
-  font-weight: bold;
-  text-shadow: 0 0 5px rgba(255, 170, 0, 0.5);
-  pointer-events: none;
-}
 
 /* Mini-Map Styling */
 #mini-map-backdrop {
