@@ -1,9 +1,8 @@
 import { io } from 'socket.io-client';
 import { getPilotToken } from './Auth.js';
 
-// 1. Use localhost when testing on your computer, use Railway when live on the internet
-const SERVER_URL = window.location.hostname === 'localhost'  ? 'http://localhost:3000' : 'https://webgame-production-89be.up.railway.app';
-
+// 1. Connect to the server. Set VITE_SERVER_URL in .env to override (e.g. for production).
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000';
 export const socket = io(SERVER_URL);
 
 // 2. Create a variable to hold the latest truth from the server
