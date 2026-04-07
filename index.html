@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Isometric Space Combat</title>
+    <script type="module" crossorigin src="./assets/index-Arv9Mvij.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-ocFlWscC.css">
+  </head>
+  <body>
+    <div id="hud" style="position: absolute; top: 20px; left: 20px; z-index: 100; color: white; font-family: sans-serif;">
+    <h3 style="margin: 0 0 5px 0;">HULL INTEGRITY</h3>
+    <div style="width: 200px; height: 20px; background: rgba(0,0,0,0.5); border: 2px solid white;">
+      <div id="health-bar-fill" style="width: 100%; height: 100%; background: #00ff00; transition: width 0.2s;"></div>
+    </div>
+  </div>
+  <!-- Scoreboard (Top Right) -->
+  <div id="scoreboard" style="position: absolute; top: 20px; right: 20px; z-index: 100; color: white; font-family: sans-serif; text-align: right;">
+    <h2 style="margin: 0; color: #00ff00;">KILLS: <span id="my-score">0</span></h2>
+  </div>
+
+  <!-- Kill Feed (Bottom Right) -->
+  <div id="kill-feed" style="position: absolute; bottom: 20px; right: 20px; z-index: 100; color: white; font-family: sans-serif; text-align: right; display: flex; flex-direction: column; gap: 5px;">
+    <!-- Kill messages will spawn here -->
+  </div>
+  
+    <div id="game-container"></div>
+    <div id="ui-layer">
+      
+      <div id="player-stats" class="hud-panel">
+        <div class="health-bar-container">
+          <div id="health-bar"></div>
+        </div>
+        <p>Hull Integrity: <span id="health-text">100</span>%</p>
+
+        <!-- Nitro / Boost fuel bar -->
+        <div class="boost-bar-container">
+          <div id="boost-bar"></div>
+        </div>
+        <p id="boost-label" class="boost-label-text">NITRO READY</p>
+      </div>
+
+      <!-- Controls Legend -->
+      <div id="controls-hint" class="hud-panel">
+        <p class="controls-title">Controls</p>
+        <p><kbd>W</kbd> / <kbd>S</kbd> Thrust / Brake</p>
+        <p><kbd>A</kbd> / <kbd>D</kbd> Turn Left / Right</p>
+        <p><kbd>Space</kbd> Fire</p>
+        <p><kbd>Shift</kbd> Nitro Boost (5s)</p>
+      </div>
+      
+      <div id="server-status">Connecting to server...</div>
+
+      <div id="mini-map-backdrop"></div>
+      <div id="mini-map-container"><canvas id="mini-map-canvas"></canvas>
+      </div>
+    </div>
+
+  </body>
+</html>
