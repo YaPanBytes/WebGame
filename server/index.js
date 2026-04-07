@@ -5,6 +5,9 @@ const cors = require('cors');
 
 // 1. Setup Express and HTTP Server
 const app = express();
+app.get('/', (req, res) => {
+  res.send('🟢 The Railway server is ALIVE!');
+});
 app.use(cors());
 
 // Add a root route for Render's health check
