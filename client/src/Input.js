@@ -5,8 +5,8 @@ export const keys = {
   s: false,
   d: false,
   space: false,
-  shift: false, // Since you added the warp drive!
-  f: false      // <--- THIS MUST BE HERE
+  shift: false,
+  f: false       // Fire weapon
 };
 
 // ... keep your existing event listeners below ...
@@ -19,6 +19,7 @@ window.addEventListener('keydown', (e) => {
   }
   if (e.code === 'Space') keys.space = true;
   if (e.shiftKey) keys.shift = true;
+  if (e.code === 'KeyF') keys.f = true;
 });
 
 // When the key is released, set its value back to false
@@ -29,4 +30,5 @@ window.addEventListener('keyup', (e) => {
   }
   if (e.code === 'Space') keys.space = false;
   if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.shift = false;
+  if (e.code === 'KeyF') keys.f = false;
 });

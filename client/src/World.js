@@ -24,7 +24,7 @@ export class World {
     });
     
     // Try to load Sun texture
-    this.textureLoader.load('./textures/planets/sun.jpg', (tex) => {
+    this.textureLoader.load('textures/planets/sun.jpg', (tex) => {
         sunMaterial.map = tex;
         sunMaterial.needsUpdate = true;
     });
@@ -117,7 +117,7 @@ export class World {
 
   createStarfield() {
     const starCounts = [3000, 1000, 300]; // Densities for each layer
-    const starSizes = [0.05, 0.12, 0.25]; // Sizes for each layer
+    const starSizes = [1.5, 2.0, 3.0]; // Sizes for each layer
     const starColors = [0xffffff, 0xaaaaaa, 0x99ccff]; // Colors for depth
 
     for (let i = 0; i < starCounts.length; i++) {
@@ -127,7 +127,7 @@ export class World {
             size: starSizes[i],
             transparent: true,
             opacity: 0.8,
-            sizeAttenuation: true
+            sizeAttenuation: false
         });
 
         const starVertices = [];
@@ -186,7 +186,7 @@ export class World {
         });
 
         // Async Texture Loading
-        this.textureLoader.load(`./textures/planets/${data.name.toLowerCase()}.jpg`, (tex) => {
+        this.textureLoader.load(`textures/planets/${data.name.toLowerCase()}.jpg`, (tex) => {
             tex.anisotropy = 8; // Keep it sharp at isometric angles
             planetMaterial.map = tex;
             planetMaterial.color.set(0xffffff); // Remove tint to show raw texture
@@ -215,6 +215,7 @@ export class World {
         }
 
         this.planets.push({
+            id: data.name.toLowerCase(),
             name: data.name,
             group: orbitGroup,
             speed: orbitalSpeed
@@ -222,11 +223,21 @@ export class World {
     });
   }
 
-  update(deltaTime) {
-    // Rotate each planet's orbit group
-    this.planets.forEach(p => {
-        p.group.rotation.y += p.speed * deltaTime;
-    });
+  update(deltaTime, serverState = null) {
+    // 1. Sync planets with server if available
+    if (serverState && serverState.planets) {
+        this.planets.forEach(p => {
+            const serverPlanet = serverState.planets[p.id];
+            if (serverPlanet) {
+                p.group.rotation.y = serverPlanet.angle;
+            }
+        });
+    } else {
+        // Fallback to local math if no server data
+        this.planets.forEach(p => {
+            p.group.rotation.y += p.speed * deltaTime;
+        });
+    }
 
     // Update Asteroids
     if (this.asteroids) {
