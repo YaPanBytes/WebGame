@@ -2,9 +2,16 @@ import { io } from 'socket.io-client';
 import { getPilotToken } from './Auth.js';
 
 // 1. Connect to the server. Set VITE_SERVER_URL in .env to override (e.g. for production).
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000';
+const SERVER_URL = import.meta.env.VITE_SERVER_URL//'http://localhost:3000';
 export const socket = io(SERVER_URL);
+socket.on("connect", () => {
+  console.log("🟢 SUCCESS! Connected to Railway Server with ID:", socket.id);
+});
 
+socket.on("connect_error", (err) => {
+  console.log("🔴 CRITICAL: Failed to connect to server!");
+  console.log("Error details:", err.message);
+});
 // 2. Create a variable to hold the latest truth from the server
 export let serverState = { players: {} };
 
