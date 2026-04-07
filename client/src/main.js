@@ -134,9 +134,7 @@ loader.load('/assets/ship.glb',(gltf) => {
     enemyModelTemplate = shipModel;
   },
   undefined,
-  (error) => {
-    console.error('Error loading the model. Check the file path!', error);
-  }
+  (error) => {console.error('Error loading the model. Check the file path!', error);}
 );
 
 // --- 6. Responsive Resize ---
