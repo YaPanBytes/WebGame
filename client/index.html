@@ -8,6 +8,7 @@
   </head>
   <body>
     <div id="game-container"></div>
+
     <div id="ui-layer">
       
       <div id="player-stats" class="hud-panel">
@@ -23,6 +24,10 @@
         <p id="boost-label" class="boost-label-text">NITRO READY</p>
       </div>
 
+      <div id="score-board" class="hud-panel">
+        <p>Targets Destroyed: <span id="score">0</span></p>
+      </div>
+
       <!-- Controls Legend -->
       <div id="controls-hint" class="hud-panel">
         <p class="controls-title">Controls</p>
@@ -31,10 +36,14 @@
         <p><kbd>Space</kbd> Fire</p>
         <p><kbd>Shift</kbd> Nitro Boost (5s)</p>
       </div>
+      
+      <div id="server-status">Connecting to server...</div>
 
       <div id="mini-map-backdrop"></div>
-      <div id="mini-map-container"><canvas id="mini-map-canvas"></canvas>
+      <div id="mini-map-container">
+        <canvas id="mini-map-canvas"></canvas>
       </div>
+
     </div>
 
     <script type="module" src="./src/main.js"></script>

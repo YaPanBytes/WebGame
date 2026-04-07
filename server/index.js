@@ -3,6 +3,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 
+// 1. Setup Express and HTTP Server
 const app = express();
 app.use(cors());
 

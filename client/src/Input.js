@@ -9,8 +9,6 @@ export const keys = {
   f: false       // Fire weapon
 };
 
-// ... keep your existing event listeners below ...
-
 // When a key is pressed down, set its value to true
 window.addEventListener('keydown', (e) => {
   const key = e.key.toLowerCase();
