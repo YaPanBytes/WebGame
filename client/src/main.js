@@ -59,8 +59,6 @@ scene.add(playerGroup);
 const projectiles = []; // Array to track all active bullets on screen
 const networkProjectiles = {}; // Tracks bullets fired by other players
 const enemyBulletMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 }); // Red lasers!
-let lastFireTime = 0;
-const FIRE_COOLDOWN = 150; // Milliseconds between shots (lower = faster firing)
 // --- VFX System (Juice!) ---
 const activeExplosions = [];
 
@@ -100,12 +98,7 @@ function spawnExplosion(x, y, z, color = 0xffaa00) {
   // Add to our update list with a 'life' timer of 1.0 (100%)
   activeExplosions.push({ mesh: pointCloud, velocities: velocities, life: 1.0 });
 }
-// Create the laser template (A long, thin neon green cylinder)
-const bulletGeometry = new THREE.CylinderGeometry(0.3, 0.3, 4, 8);
-// By default, Three.js cylinders stand straight up (Y-axis). 
-// We rotate it 90 degrees so it points forward (Z-axis).
-bulletGeometry.rotateX(Math.PI / 2); 
-const bulletMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 }); // Neon Green
+
 const enemyPlanes = {}; 
 // We will clone your ship model for the enemies
 let enemyModelTemplate = null;
