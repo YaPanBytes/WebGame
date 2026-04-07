@@ -1,11 +1,9 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const cors = require('cors');
 
 // 1. Setup Express and HTTP Server
 const app = express();
-app.use(cors());
 
 // Add a root route for Render's health check
 app.get('/', (req, res) => {
@@ -13,7 +11,12 @@ app.get('/', (req, res) => {
 });
 
 const server = http.createServer(app);
-
+const io = new Server(server, {
+  cors: {
+    origin: "*", // The asterisk means "Allow anyone to connect"
+    methods: ["GET", "POST"]
+  }
+});
 // 2. Setup Socket.io
 const io = new Server(server, {
   cors: {
