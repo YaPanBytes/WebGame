@@ -29,23 +29,27 @@ Bash
 npm install
 Start the server:
 
-Bash
-npm start
+   ```bash
+   npm start
+```
 You should see a message in the console: 🚀 Server is running on port 3000
 
 2. Frontend Setup
 Open a new terminal window and navigate to the client folder:
 
-Bash
+```bash
 cd client
+```
 Install the required frontend dependencies:
 
-Bash
+```bash
 npm install
+```
 Start the Vite development server:
 
-Bash
+```bash
 npm run dev
+```
 Open the provided localhost link (usually http://localhost:5173) in your browser to view the game.
 
 Deployment Guide
@@ -56,13 +60,13 @@ Create a new "Web Service" on Render and connect this repository.
 
 Use the following settings:
 
-Root Directory: server
+Root Directory: ```server```
 
-Environment: Node
+Environment: ```Node```
 
-Build Command: npm install
+Build Command: ```npm install```
 
-Start Command: npm start
+Start Command:``` npm start```
 
 Once deployed, copy the Render URL and paste it into the frontend's network.js file:
 
@@ -77,10 +81,12 @@ Ensure your remote backend URL is correctly set in client/src/network.js.
 
 Open your terminal and navigate to the client folder:
 
-Bash
+```bash
 cd client
+```
 Run the deployment script:
 
-Bash
+```bash
 npm run deploy
+```
 This command will automatically run vite build to compress your game, and then push the optimized /dist folder to the gh-pages branch, updating your live website.
