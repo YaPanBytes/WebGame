@@ -2,7 +2,7 @@ import { io } from 'socket.io-client';
 import { getPilotToken } from './Auth.js';
 
 // 1. Connect to the server. Set VITE_SERVER_URL in .env to override (e.g. for production).
-const SERVER_URL = 'https://webgame-production-89be.up.railway.app';
+const SERVER_URL = 'https://webgame-production-89be.up.railway.app'|| 'http://localhost:3000';
 export const socket = io(SERVER_URL);
 socket.on("connect", () => {
   console.log("🟢 SUCCESS! Connected to Railway Server with ID:", socket.id);
