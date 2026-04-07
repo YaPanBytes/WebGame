@@ -21,12 +21,10 @@ const gameState = {
   projectiles: [] 
 };
 
-io.on('connection', (socket) => {
-  console.log(`[+] Player joined: ${socket.id}`);
+io.on('connection', (socket) => {console.log(`[+] Player joined: ${socket.id}`);
 
   // --- NEW: Give players 100 HP when they join ---
-  gameState.players[socket.id] = { x: 0, z: 0, rotation: 0, hp: 100 };
-
+  gameState.players[socket.id] = { x: 0, z: 0, rotation: 0, hp: 100, score: 0 };
   // Listen for movement
   socket.on('playerMoved', (data) => {
     if (gameState.players[socket.id]) {
@@ -81,9 +79,22 @@ setInterval(() => {
         bulletDestroyed = true;
         
         // 3. Death & Respawn Logic
+        // 3. Death & Respawn Logic
         if (player.hp <= 0) {
-          console.log(`[!] ${playerId} was destroyed! Respawning...`);
-          // Teleport them to a random location inside the arena
+          console.log(`[!] ${playerId} was destroyed!`);
+          
+          // --- NEW: Give the shooter a point and broadcast the kill ---
+          if (gameState.players[p.ownerId]) {
+            gameState.players[p.ownerId].score += 1;
+            
+            // Tell all browsers to show a message! (We grab the first 4 characters of their ID as a "name")
+            io.emit('killFeed', { 
+              killer: p.ownerId.substring(0, 4), 
+              victim: playerId.substring(0, 4) 
+            });
+          }
+
+          // Teleport victim to a random location inside the arena
           player.x = (Math.random() - 0.5) * WORLD_RADIUS;
           player.z = (Math.random() - 0.5) * WORLD_RADIUS;
           player.hp = 100; // Restore health
